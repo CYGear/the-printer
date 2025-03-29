@@ -11,6 +11,7 @@ function loadSTL(event) {
     const loader = new THREE.STLLoader();
     const geometry = loader.parse(contents);
     geometry.computeBoundingBox();
+    geometry.computeVertexNormals();
 
     const center = new THREE.Vector3();
     geometry.boundingBox.getCenter(center);
@@ -20,9 +21,8 @@ function loadSTL(event) {
     mesh = new THREE.Mesh(geometry, material);
 
     resetViewer();
-    autoOrientMeshToZ(mesh);
+    autoOrientToFlattestFace(mesh);
     scene.add(mesh);
-
     addTransformControls();
   };
   reader.readAsArrayBuffer(file);
@@ -43,7 +43,6 @@ function resetViewer() {
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
-  // Fullscreen Button
   const fullscreenBtn = document.createElement("button");
   fullscreenBtn.id = "fullscreen-btn";
   fullscreenBtn.innerHTML = "⛶";
@@ -62,7 +61,6 @@ function resetViewer() {
   fullscreenBtn.onclick = toggleFullscreen;
   container.appendChild(fullscreenBtn);
 
-  // Lights
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(1, 2, 2);
   scene.add(light);
@@ -90,26 +88,40 @@ function toggleFullscreen() {
   }
 }
 
-function autoOrientMeshToZ(mesh) {
+function autoOrientToFlattestFace(mesh) {
   const geometry = mesh.geometry;
+  geometry.computeFaceNormals();
+
+  let faceAreas = {};
+  let faceNormals = {};
+
+  geometry.faces.forEach(face => {
+    const normalKey = `${face.normal.x.toFixed(1)},${face.normal.y.toFixed(1)},${face.normal.z.toFixed(1)}`;
+    const vA = geometry.vertices[face.a];
+    const vB = geometry.vertices[face.b];
+    const vC = geometry.vertices[face.c];
+
+    const area = new THREE.Triangle(vA, vB, vC).getArea();
+    faceAreas[normalKey] = (faceAreas[normalKey] || 0) + area;
+    faceNormals[normalKey] = face.normal.clone();
+  });
+
+  let flattest = Object.entries(faceAreas).sort((a, b) => b[1] - a[1])[0];
+  if (!flattest) return;
+
+  const normal = faceNormals[flattest[0]];
+  const quaternion = new THREE.Quaternion().setFromUnitVectors(normal, new THREE.Vector3(0, 0, 1));
+  mesh.applyQuaternion(quaternion);
+
   geometry.computeBoundingBox();
-
-  const box = geometry.boundingBox;
-  const height = box.max.z - box.min.z;
-
-  // Move lowest Z point to 0
-  mesh.position.z = -box.min.z;
-
-  // If needed, you could try more complex base detection logic here
+  mesh.position.z = -geometry.boundingBox.min.z;
 }
 
 function addTransformControls() {
   transformControls = new THREE.TransformControls(camera, renderer.domElement);
   transformControls.attach(mesh);
-  transformControls.setMode("rotate"); // or "translate" / "scale"
-  transformControls.showY = true;
-  transformControls.showZ = true;
-  transformControls.showX = true;
+  transformControls.setMode("rotate");
+  transformControls.size = 1.5; // make it larger for visibility
   transformControls.addEventListener("dragging-changed", function (event) {
     controls.enabled = !event.value;
   });
