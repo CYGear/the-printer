@@ -52,7 +52,7 @@ function resetViewer() {
   fullscreenBtn.style = `
     position: absolute;
     top: 10px;
-    right: 50px;
+    right: 10px;
     background: rgba(255,255,255,0.1);
     color: white;
     border: 1px solid #555;
@@ -69,7 +69,7 @@ function resetViewer() {
   resetCamBtn.innerHTML = "Reset View";
   resetCamBtn.style = `
     position: absolute;
-    top: 10px;
+    top: 50px;
     right: 10px;
     background: rgba(255,255,255,0.1);
     color: white;
