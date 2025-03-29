@@ -32,6 +32,7 @@ function loadSTL(event) {
 function resetViewer() {
   const container = document.getElementById("viewer");
   container.innerHTML = "";
+  container.style.height = '500px';
 
   const width = container.clientWidth;
   const height = container.clientHeight || 300;
@@ -100,12 +101,29 @@ function animate() {
 function toggleFullscreen() {
   const viewer = document.getElementById("viewer");
   if (!document.fullscreenElement) {
-    viewer.requestFullscreen().catch(err => {
+    viewer.requestFullscreen().then(() => {
+      viewer.style.height = '100vh';
+      resizeViewer();
+      centerCameraOnModel();
+    }).catch(err => {
       alert(`Error enabling fullscreen: ${err.message}`);
     });
   } else {
-    document.exitFullscreen();
+    document.exitFullscreen().then(() => {
+      viewer.style.height = '500px';
+      resizeViewer();
+      centerCameraOnModel();
+    });
   }
+}
+
+function resizeViewer() {
+  const container = document.getElementById("viewer");
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
 }
 
 function centerCameraOnModel() {
@@ -176,10 +194,4 @@ function addTransformControls() {
   scene.add(transformControls);
 }
 
-window.addEventListener('resize', () => {
-  if (!renderer || !camera) return;
-  const container = document.getElementById("viewer");
-  camera.aspect = container.clientWidth / container.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(container.clientWidth, container.clientHeight);
-});
+window.addEventListener('resize', resizeViewer);
