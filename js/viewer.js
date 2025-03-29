@@ -24,6 +24,7 @@ function loadSTL(event) {
     scene.add(mesh);
     autoOrientToFlattestFace(mesh);
     addTransformControls();
+    centerCameraOnModel();
   };
   reader.readAsArrayBuffer(file);
 }
@@ -41,12 +42,31 @@ function resetViewer() {
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(width, height);
+  renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
   const fullscreenBtn = document.createElement("button");
   fullscreenBtn.id = "fullscreen-btn";
   fullscreenBtn.innerHTML = "⛶";
   fullscreenBtn.style = `
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid #555;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    z-index: 10;
+  `;
+  fullscreenBtn.onclick = toggleFullscreen;
+  container.appendChild(fullscreenBtn);
+
+  const resetCamBtn = document.createElement("button");
+  resetCamBtn.id = "reset-cam-btn";
+  resetCamBtn.innerHTML = "Reset View";
+  resetCamBtn.style = `
     position: absolute;
     top: 10px;
     right: 10px;
@@ -58,8 +78,8 @@ function resetViewer() {
     border-radius: 5px;
     z-index: 10;
   `;
-  fullscreenBtn.onclick = toggleFullscreen;
-  container.appendChild(fullscreenBtn);
+  resetCamBtn.onclick = () => centerCameraOnModel();
+  container.appendChild(resetCamBtn);
 
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(1, 2, 2);
@@ -86,6 +106,19 @@ function toggleFullscreen() {
   } else {
     document.exitFullscreen();
   }
+}
+
+function centerCameraOnModel() {
+  if (!mesh) return;
+
+  const box = new THREE.Box3().setFromObject(mesh);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+
+  camera.position.copy(center.clone().add(new THREE.Vector3(0, 0, size.length() * 1.5)));
+  camera.lookAt(center);
+  controls.target.copy(center);
+  controls.update();
 }
 
 function autoOrientToFlattestFace(mesh) {
@@ -142,3 +175,11 @@ function addTransformControls() {
 
   scene.add(transformControls);
 }
+
+window.addEventListener('resize', () => {
+  if (!renderer || !camera) return;
+  const container = document.getElementById("viewer");
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
