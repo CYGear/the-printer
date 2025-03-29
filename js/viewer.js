@@ -69,7 +69,7 @@ function resetViewer() {
   resetCamBtn.innerHTML = "Reset View";
   resetCamBtn.style = `
     position: absolute;
-    top: 50px;
+    top: 60px;
     right: 10px;
     background: rgba(255,255,255,0.1);
     color: white;
