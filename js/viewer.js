@@ -1,4 +1,4 @@
-let scene, camera, renderer, controls, mesh;
+let scene, camera, renderer, controls, transformControls, mesh;
 
 function loadSTL(event) {
   const file = event.target.files[0];
@@ -19,15 +19,16 @@ function loadSTL(event) {
     const material = new THREE.MeshPhongMaterial({ color: 0x999999, flatShading: true });
     mesh = new THREE.Mesh(geometry, material);
 
-    autoOrientToFlattestFace(mesh);
-
-    initViewer();
+    resetViewer();
+    autoOrientMeshToZ(mesh);
     scene.add(mesh);
+
+    addTransformControls();
   };
   reader.readAsArrayBuffer(file);
 }
 
-function initViewer() {
+function resetViewer() {
   const container = document.getElementById("viewer");
   container.innerHTML = "";
 
@@ -36,13 +37,13 @@ function initViewer() {
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-  camera.position.z = 100;
+  camera.position.set(0, 0, 100);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
-  // Add persistent fullscreen button
+  // Fullscreen Button
   const fullscreenBtn = document.createElement("button");
   fullscreenBtn.id = "fullscreen-btn";
   fullscreenBtn.innerHTML = "⛶";
@@ -61,13 +62,13 @@ function initViewer() {
   fullscreenBtn.onclick = toggleFullscreen;
   container.appendChild(fullscreenBtn);
 
+  // Lights
   const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(1, 1, 1).normalize();
+  light.position.set(1, 2, 2);
   scene.add(light);
 
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
 
   animate();
 }
@@ -89,35 +90,29 @@ function toggleFullscreen() {
   }
 }
 
-function autoOrientToFlattestFace(mesh) {
+function autoOrientMeshToZ(mesh) {
   const geometry = mesh.geometry;
   geometry.computeBoundingBox();
-  geometry.computeVertexNormals();
 
-  const zMin = geometry.boundingBox.min.z;
+  const box = geometry.boundingBox;
+  const height = box.max.z - box.min.z;
 
-  // Shift to lay the lowest point on the ground
-  mesh.position.y = -zMin;
+  // Move lowest Z point to 0
+  mesh.position.z = -box.min.z;
 
-  // Try all 3 axes and pick the one that results in lowest height
-  const rotations = [
-    { x: 0, y: 0, z: 0 },
-    { x: Math.PI / 2, y: 0, z: 0 },
-    { x: 0, y: Math.PI / 2, z: 0 },
-  ];
+  // If needed, you could try more complex base detection logic here
+}
 
-  let bestRotation = rotations[0];
-  let lowestHeight = Infinity;
+function addTransformControls() {
+  transformControls = new THREE.TransformControls(camera, renderer.domElement);
+  transformControls.attach(mesh);
+  transformControls.setMode("rotate"); // or "translate" / "scale"
+  transformControls.showY = true;
+  transformControls.showZ = true;
+  transformControls.showX = true;
+  transformControls.addEventListener("dragging-changed", function (event) {
+    controls.enabled = !event.value;
+  });
 
-  for (const rot of rotations) {
-    mesh.rotation.set(rot.x, rot.y, rot.z);
-    geometry.computeBoundingBox();
-    const height = geometry.boundingBox.max.z - geometry.boundingBox.min.z;
-    if (height < lowestHeight) {
-      lowestHeight = height;
-      bestRotation = { ...rot };
-    }
-  }
-
-  mesh.rotation.set(bestRotation.x, bestRotation.y, bestRotation.z);
+  scene.add(transformControls);
 }
