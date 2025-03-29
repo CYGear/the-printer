@@ -7,7 +7,7 @@ function switchTab(tabId) {
 }
 
 function processOrder() {
-  const printTime = 7; // Placeholder for future estimate
+  const printTime = 7; // Placeholder, eventually estimate from STL
   const grams = 50;
   const filamentCost = grams * 0.02;
   const electricityCost = printTime * 0.2 * 0.14;
@@ -35,8 +35,10 @@ function submitOrder(total, delivery) {
   const name = document.getElementById("name").value;
   const email = document.getElementById("email").value;
   const filename = document.getElementById("file").files[0]?.name || "No file";
+
   const topColor = document.getElementById("topColor").value;
   const bottomColor = document.getElementById("bottomColor").value;
+  const cutSlider = document.getElementById("slider").value;
 
   const orderData = {
     name,
@@ -46,7 +48,8 @@ function submitOrder(total, delivery) {
     price: `$${total}`,
     deliveryTime: delivery,
     colorTop: topColor,
-    colorBottom: bottomColor
+    colorBottom: bottomColor,
+    cutAtPercent: cutSlider + "%",
   };
 
   sendToGoogleSheet(orderData);
@@ -70,6 +73,7 @@ function orderProduct(productName) {
     deliveryTime: "1–2 days",
     colorTop: "N/A",
     colorBottom: "N/A",
+    cutAtPercent: "N/A",
     grade,
     className
   };
