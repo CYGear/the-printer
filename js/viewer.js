@@ -100,31 +100,34 @@ function autoOrientToFlattestFace(mesh) {
     vertices.push(new THREE.Vector3().fromBufferAttribute(pos, i));
   }
 
-  let bestFace = null;
   let maxArea = 0;
+  let bestNormal = new THREE.Vector3(0, 0, 1); // fallback
 
   for (let i = 0; i < index.count; i += 3) {
     const a = index.getX(i);
     const b = index.getX(i + 1);
     const c = index.getX(i + 2);
 
-    const vA = vertices[a], vB = vertices[b], vC = vertices[c];
-    const area = new THREE.Triangle(vA, vB, vC).getArea();
-    const normal = new THREE.Triangle(vA, vB, vC).getNormal(new THREE.Vector3());
+    const vA = vertices[a];
+    const vB = vertices[b];
+    const vC = vertices[c];
+
+    const triangle = new THREE.Triangle(vA, vB, vC);
+    const area = triangle.getArea();
+    const normal = triangle.getNormal(new THREE.Vector3());
 
     if (area > maxArea) {
       maxArea = area;
-      bestFace = { normal };
+      bestNormal = normal;
     }
   }
 
-  if (bestFace) {
-    const up = new THREE.Vector3(0, 0, 1);
-    const quaternion = new THREE.Quaternion().setFromUnitVectors(bestFace.normal, up);
-    mesh.applyQuaternion(quaternion);
-    geometry.computeBoundingBox();
-    mesh.position.z = -geometry.boundingBox.min.z;
-  }
+  const up = new THREE.Vector3(0, 0, 1);
+  const quaternion = new THREE.Quaternion().setFromUnitVectors(bestNormal, up);
+  mesh.applyQuaternion(quaternion);
+
+  geometry.computeBoundingBox();
+  mesh.position.z = -geometry.boundingBox.min.z;
 }
 
 function addTransformControls() {
