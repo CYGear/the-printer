@@ -1,6 +1,4 @@
-let scene, camera, renderer, mesh, controls;
-let topMesh, bottomMesh;
-let cutPlane = 50;
+let scene, camera, renderer, controls, mesh;
 
 function loadSTL(event) {
   const file = event.target.files[0];
@@ -21,15 +19,15 @@ function loadSTL(event) {
     const material = new THREE.MeshPhongMaterial({ color: 0x999999, flatShading: true });
     mesh = new THREE.Mesh(geometry, material);
 
-    autoOrientMesh(mesh);
+    autoOrientToFlattestFace(mesh);
 
-    resetViewer();
-    addSplitMeshes(geometry);
+    initViewer();
+    scene.add(mesh);
   };
   reader.readAsArrayBuffer(file);
 }
 
-function resetViewer() {
+function initViewer() {
   const container = document.getElementById("viewer");
   container.innerHTML = "";
 
@@ -44,7 +42,7 @@ function resetViewer() {
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
-  // Fullscreen button stays in place
+  // Add persistent fullscreen button
   const fullscreenBtn = document.createElement("button");
   fullscreenBtn.id = "fullscreen-btn";
   fullscreenBtn.innerHTML = "⛶";
@@ -67,62 +65,11 @@ function resetViewer() {
   light.position.set(1, 1, 1).normalize();
   scene.add(light);
 
-  scene.add(mesh);
-
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
 
   animate();
-
-  document.getElementById("slider").addEventListener("input", updateCutPosition);
-  document.getElementById("topColor").addEventListener("change", updateColors);
-  document.getElementById("bottomColor").addEventListener("change", updateColors);
-}
-
-function addSplitMeshes(geometry) {
-  const bbox = geometry.boundingBox;
-  const height = bbox.max.z - bbox.min.z;
-  const cutZ = bbox.min.z + (cutPlane / 100) * height;
-
-  const topMaterial = new THREE.MeshPhongMaterial({ color: getColorHex("topColor"), flatShading: true });
-  const bottomMaterial = new THREE.MeshPhongMaterial({ color: getColorHex("bottomColor"), flatShading: true });
-
-  const topGeometry = geometry.clone();
-  const bottomGeometry = geometry.clone();
-
-  topMesh = new THREE.Mesh(topGeometry, topMaterial);
-  bottomMesh = new THREE.Mesh(bottomGeometry, bottomMaterial);
-
-  topMesh.position.z = 0.5;
-  bottomMesh.position.z = -0.5;
-
-  scene.add(topMesh);
-  scene.add(bottomMesh);
-}
-
-function updateCutPosition(e) {
-  cutPlane = parseInt(e.target.value);
-  updateColors();
-}
-
-function updateColors() {
-  if (!topMesh || !bottomMesh) return;
-  topMesh.material.color.set(getColorHex("topColor"));
-  bottomMesh.material.color.set(getColorHex("bottomColor"));
-}
-
-function getColorHex(selectId) {
-  const color = document.getElementById(selectId).value.toLowerCase();
-  const colors = {
-    blue: 0x2196f3,
-    green: 0x4caf50,
-    rainbow: 0xffc107,
-    white: 0xffffff,
-    black: 0x000000,
-    red: 0xf44336,
-  };
-  return colors[color] || 0x999999;
 }
 
 function animate() {
@@ -142,20 +89,35 @@ function toggleFullscreen() {
   }
 }
 
-function autoOrientMesh(mesh) {
-  const box = new THREE.Box3().setFromObject(mesh);
-  const size = new THREE.Vector3();
-  box.getSize(size);
+function autoOrientToFlattestFace(mesh) {
+  const geometry = mesh.geometry;
+  geometry.computeBoundingBox();
+  geometry.computeVertexNormals();
 
-  if (size.x > size.y && size.x > size.z) {
-    mesh.rotation.z = Math.PI / 2;
-  } else if (size.y > size.x && size.y > size.z) {
-    mesh.rotation.x = Math.PI / 2;
+  const zMin = geometry.boundingBox.min.z;
+
+  // Shift to lay the lowest point on the ground
+  mesh.position.y = -zMin;
+
+  // Try all 3 axes and pick the one that results in lowest height
+  const rotations = [
+    { x: 0, y: 0, z: 0 },
+    { x: Math.PI / 2, y: 0, z: 0 },
+    { x: 0, y: Math.PI / 2, z: 0 },
+  ];
+
+  let bestRotation = rotations[0];
+  let lowestHeight = Infinity;
+
+  for (const rot of rotations) {
+    mesh.rotation.set(rot.x, rot.y, rot.z);
+    geometry.computeBoundingBox();
+    const height = geometry.boundingBox.max.z - geometry.boundingBox.min.z;
+    if (height < lowestHeight) {
+      lowestHeight = height;
+      bestRotation = { ...rot };
+    }
   }
 
-  mesh.geometry.computeBoundingBox();
-  const bbox = mesh.geometry.boundingBox;
-  const center = new THREE.Vector3();
-  bbox.getCenter(center);
-  mesh.position.sub(center);
+  mesh.rotation.set(bestRotation.x, bestRotation.y, bestRotation.z);
 }
