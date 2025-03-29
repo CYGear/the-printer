@@ -9,11 +9,9 @@ function loadSTL(event) {
     const contents = e.target.result;
 
     const loader = new THREE.STLLoader();
-    const bufferGeometry = loader.parse(contents);
-    const geometry = new THREE.Geometry().fromBufferGeometry(bufferGeometry);
+    const geometry = loader.parse(contents);
     geometry.computeBoundingBox();
-    geometry.computeFaceNormals();
-    geometry.mergeVertices();
+    geometry.computeVertexNormals();
 
     const center = new THREE.Vector3();
     geometry.boundingBox.getCenter(center);
@@ -23,8 +21,8 @@ function loadSTL(event) {
     mesh = new THREE.Mesh(geometry, material);
 
     resetViewer();
-    autoOrientToLargestFlatFace(mesh);
     scene.add(mesh);
+    autoOrientToFlattestFace(mesh);
     addTransformControls();
   };
   reader.readAsArrayBuffer(file);
@@ -90,29 +88,43 @@ function toggleFullscreen() {
   }
 }
 
-function autoOrientToLargestFlatFace(mesh) {
+function autoOrientToFlattestFace(mesh) {
   const geometry = mesh.geometry;
+  const pos = geometry.attributes.position;
+  const index = geometry.index;
+
+  if (!pos || !index) return;
+
+  const vertices = [];
+  for (let i = 0; i < pos.count; i++) {
+    vertices.push(new THREE.Vector3().fromBufferAttribute(pos, i));
+  }
+
+  let bestFace = null;
   let maxArea = 0;
-  let bestNormal = new THREE.Vector3(0, 0, 1);
 
-  geometry.faces.forEach(face => {
-    const vA = geometry.vertices[face.a];
-    const vB = geometry.vertices[face.b];
-    const vC = geometry.vertices[face.c];
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i);
+    const b = index.getX(i + 1);
+    const c = index.getX(i + 2);
 
+    const vA = vertices[a], vB = vertices[b], vC = vertices[c];
     const area = new THREE.Triangle(vA, vB, vC).getArea();
+    const normal = new THREE.Triangle(vA, vB, vC).getNormal(new THREE.Vector3());
+
     if (area > maxArea) {
       maxArea = area;
-      bestNormal = face.normal.clone();
+      bestFace = { normal };
     }
-  });
+  }
 
-  const up = new THREE.Vector3(0, 0, 1);
-  const quaternion = new THREE.Quaternion().setFromUnitVectors(bestNormal, up);
-  mesh.applyQuaternion(quaternion);
-
-  geometry.computeBoundingBox();
-  mesh.position.z = -geometry.boundingBox.min.z;
+  if (bestFace) {
+    const up = new THREE.Vector3(0, 0, 1);
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(bestFace.normal, up);
+    mesh.applyQuaternion(quaternion);
+    geometry.computeBoundingBox();
+    mesh.position.z = -geometry.boundingBox.min.z;
+  }
 }
 
 function addTransformControls() {
@@ -120,6 +132,7 @@ function addTransformControls() {
   transformControls.attach(mesh);
   transformControls.setMode("rotate");
   transformControls.size = 2.5;
+
   transformControls.addEventListener("dragging-changed", function (event) {
     controls.enabled = !event.value;
   });
