@@ -40,11 +40,14 @@
     <!-- CUSTOM TAB -->
     <section id="custom" class="tab">
       <h2>Upload Your 3D Model</h2>
+
       <div class="form-group">
         <label for="file">STL File:</label>
         <input type="file" id="file" accept=".stl" onchange="loadSTL(event)" />
       </div>
-      <div id="viewer"></div>
+
+      <!-- Viewer for 3D model -->
+      <div id="viewer" style="margin-top: 20px;"></div>
 
       <label for="slider">Cut Position (% height):</label>
       <input type="range" id="slider" min="0" max="100" />
