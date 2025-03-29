@@ -1,4 +1,5 @@
-let scene, camera, renderer, mesh, topMesh, bottomMesh;
+let scene, camera, renderer, mesh, controls;
+let topMesh, bottomMesh;
 let cutPlane = 50;
 
 function loadSTL(event) {
@@ -22,14 +23,13 @@ function loadSTL(event) {
 
     autoOrientMesh(mesh);
 
-    initViewer();
+    resetViewer();
     addSplitMeshes(geometry);
-    animate();
   };
   reader.readAsArrayBuffer(file);
 }
 
-function initViewer() {
+function resetViewer() {
   const container = document.getElementById("viewer");
   container.innerHTML = "";
 
@@ -44,9 +44,36 @@ function initViewer() {
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
+  // Fullscreen button stays in place
+  const fullscreenBtn = document.createElement("button");
+  fullscreenBtn.id = "fullscreen-btn";
+  fullscreenBtn.innerHTML = "⛶";
+  fullscreenBtn.style = `
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid #555;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    z-index: 10;
+  `;
+  fullscreenBtn.onclick = toggleFullscreen;
+  container.appendChild(fullscreenBtn);
+
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(1, 1, 1).normalize();
   scene.add(light);
+
+  scene.add(mesh);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+
+  animate();
 
   document.getElementById("slider").addEventListener("input", updateCutPosition);
   document.getElementById("topColor").addEventListener("change", updateColors);
@@ -54,7 +81,6 @@ function initViewer() {
 }
 
 function addSplitMeshes(geometry) {
-  // Simple visual split using bounding box halves
   const bbox = geometry.boundingBox;
   const height = bbox.max.z - bbox.min.z;
   const cutZ = bbox.min.z + (cutPlane / 100) * height;
@@ -101,14 +127,12 @@ function getColorHex(selectId) {
 
 function animate() {
   requestAnimationFrame(animate);
-  if (topMesh) topMesh.rotation.y += 0.01;
-  if (bottomMesh) bottomMesh.rotation.y += 0.01;
+  controls?.update();
   renderer.render(scene, camera);
 }
 
 function toggleFullscreen() {
   const viewer = document.getElementById("viewer");
-
   if (!document.fullscreenElement) {
     viewer.requestFullscreen().catch(err => {
       alert(`Error enabling fullscreen: ${err.message}`);
