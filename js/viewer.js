@@ -35,6 +35,46 @@ function loadSTL(event) {
   reader.readAsArrayBuffer(file);
 }
 
+function addCutControls() {
+  const container = document.getElementById("viewer");
+  const cutBtn = document.createElement("button");
+  cutBtn.innerText = "Add Cut";
+  cutBtn.style = `
+    position: absolute;
+    top: 110px;
+    right: 10px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid #555;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    z-index: 10;
+  `;
+  cutBtn.onclick = () => createCutLine();
+  container.appendChild(cutBtn);
+}
+
+function createCutLine() {
+  const geometry = new THREE.PlaneGeometry(100, 0.2);
+  const material = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
+  const line = new THREE.Mesh(geometry, material);
+  line.position.y = 0;
+  line.name = `cutLine_${cutLines.length}`;
+  cutLines.push(line);
+  scene.add(line);
+
+  const dragControl = new THREE.TransformControls(camera, renderer.domElement);
+  dragControl.attach(line);
+  dragControl.setMode("translate");
+  dragControl.showX = false;
+  dragControl.showZ = false;
+  dragControl.addEventListener("dragging-changed", function (event) {
+    controls.enabled = !event.value;
+  });
+  scene.add(dragControl);
+}
+
 function setupColorPicker() {
   colorPicker = document.createElement("select");
   colorPicker.id = "colorPicker";
@@ -60,7 +100,6 @@ function setupColorPicker() {
   };
   document.getElementById("viewer").appendChild(colorPicker);
 
-  // Segment click detection
   renderer.domElement.addEventListener("click", detectSegmentClick);
 }
 
@@ -69,7 +108,7 @@ function detectSegmentClick(event) {
 
   const rect = renderer.domElement.getBoundingClientRect();
   const y = event.clientY - rect.top;
-  const percent = 1 - (y / rect.height); // top to bottom
+  const percent = 1 - (y / rect.height);
 
   const bounds = [0, ...cutLines.map(line => (line.position.y)), 1].sort((a, b) => b - a);
 
@@ -86,5 +125,3 @@ function detectSegmentClick(event) {
     }
   }
 }
-
-// All previous functions remain the same (resetViewer, animate, fullscreen, cut creation, etc)...
