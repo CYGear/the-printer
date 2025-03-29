@@ -9,9 +9,11 @@ function loadSTL(event) {
     const contents = e.target.result;
 
     const loader = new THREE.STLLoader();
-    const geometry = loader.parse(contents);
+    const bufferGeometry = loader.parse(contents);
+    const geometry = new THREE.Geometry().fromBufferGeometry(bufferGeometry);
     geometry.computeBoundingBox();
-    geometry.computeVertexNormals();
+    geometry.computeFaceNormals();
+    geometry.mergeVertices();
 
     const center = new THREE.Vector3();
     geometry.boundingBox.getCenter(center);
@@ -21,7 +23,7 @@ function loadSTL(event) {
     mesh = new THREE.Mesh(geometry, material);
 
     resetViewer();
-    autoOrientToFlattestFace(mesh);
+    autoOrientToLargestFlatFace(mesh);
     scene.add(mesh);
     addTransformControls();
   };
@@ -88,29 +90,25 @@ function toggleFullscreen() {
   }
 }
 
-function autoOrientToFlattestFace(mesh) {
+function autoOrientToLargestFlatFace(mesh) {
   const geometry = mesh.geometry;
-  geometry.computeFaceNormals();
-
-  let faceAreas = {};
-  let faceNormals = {};
+  let maxArea = 0;
+  let bestNormal = new THREE.Vector3(0, 0, 1);
 
   geometry.faces.forEach(face => {
-    const normalKey = `${face.normal.x.toFixed(1)},${face.normal.y.toFixed(1)},${face.normal.z.toFixed(1)}`;
     const vA = geometry.vertices[face.a];
     const vB = geometry.vertices[face.b];
     const vC = geometry.vertices[face.c];
 
     const area = new THREE.Triangle(vA, vB, vC).getArea();
-    faceAreas[normalKey] = (faceAreas[normalKey] || 0) + area;
-    faceNormals[normalKey] = face.normal.clone();
+    if (area > maxArea) {
+      maxArea = area;
+      bestNormal = face.normal.clone();
+    }
   });
 
-  let flattest = Object.entries(faceAreas).sort((a, b) => b[1] - a[1])[0];
-  if (!flattest) return;
-
-  const normal = faceNormals[flattest[0]];
-  const quaternion = new THREE.Quaternion().setFromUnitVectors(normal, new THREE.Vector3(0, 0, 1));
+  const up = new THREE.Vector3(0, 0, 1);
+  const quaternion = new THREE.Quaternion().setFromUnitVectors(bestNormal, up);
   mesh.applyQuaternion(quaternion);
 
   geometry.computeBoundingBox();
@@ -121,7 +119,7 @@ function addTransformControls() {
   transformControls = new THREE.TransformControls(camera, renderer.domElement);
   transformControls.attach(mesh);
   transformControls.setMode("rotate");
-  transformControls.size = 1.5; // make it larger for visibility
+  transformControls.size = 2.5;
   transformControls.addEventListener("dragging-changed", function (event) {
     controls.enabled = !event.value;
   });
