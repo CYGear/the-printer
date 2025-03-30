@@ -26,7 +26,7 @@ function loadSTL(event) {
     scene.add(mesh);
     autoOrientToFlattestFace(mesh);
     addTransformControls();
-    centerCameraOnModel();
+    centerCameraTopDown();
     addCutControls();
     addBuildPlate();
   };
@@ -81,7 +81,7 @@ function resetViewer() {
     border-radius: 5px;
     z-index: 10;
   `;
-  resetCamBtn.onclick = () => centerCameraOnModel();
+  resetCamBtn.onclick = centerCameraTopDown;
   container.appendChild(resetCamBtn);
 
   const light = new THREE.DirectionalLight(0xffffff, 1);
@@ -106,13 +106,13 @@ function toggleFullscreen() {
     viewer.requestFullscreen().then(() => {
       viewer.style.height = '100vh';
       resizeViewer();
-      centerCameraOnModel();
+      centerCameraTopDown();
     }).catch(err => alert(`Fullscreen error: ${err.message}`));
   } else {
     document.exitFullscreen().then(() => {
       viewer.style.height = '500px';
       resizeViewer();
-      centerCameraOnModel();
+      centerCameraTopDown();
     });
   }
 }
@@ -126,14 +126,27 @@ function resizeViewer() {
   renderer.setSize(width, height);
 }
 
-function centerCameraOnModel() {
+function centerCameraTopDown() {
   if (!mesh) return;
   const box = new THREE.Box3().setFromObject(mesh);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
 
-  // Side view
-  camera.position.copy(center.clone().add(new THREE.Vector3(size.length() * 1.5, 0, size.y)));
+  camera.position.set(center.x, center.y, size.z * 2);
+  camera.up.set(0, 1, 0);
+  camera.lookAt(center);
+  controls.target.copy(center);
+  controls.update();
+}
+
+function centerCameraSideView() {
+  if (!mesh) return;
+  const box = new THREE.Box3().setFromObject(mesh);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+
+  camera.position.set(center.x + size.x * 2, center.y, center.z);
+  camera.up.set(0, 0, 1);
   camera.lookAt(center);
   controls.target.copy(center);
   controls.update();
@@ -175,7 +188,7 @@ function autoOrientToFlattestFace(mesh) {
 
   geometry.computeBoundingBox();
   const minZ = geometry.boundingBox.min.z;
-  mesh.position.z = -minZ; // Sit flush on build plate
+  mesh.position.z = -minZ;
 }
 
 function addTransformControls() {
@@ -188,7 +201,6 @@ function addTransformControls() {
     controls.enabled = !event.value;
   });
 
-  // Prevent mesh from going below build plate
   transformControls.addEventListener("objectChange", () => {
     const box = new THREE.Box3().setFromObject(mesh);
     if (box.min.z < 0) {
@@ -220,13 +232,12 @@ function addCutControls() {
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
 
-    if (Math.abs(camDir.angleTo(zUp)) > 0.3) {
-      camera.up.set(0, 0, 1);
-      camera.position.set(0, 0, 100);
-      camera.lookAt(0, 0, 0);
-      controls.target.set(0, 0, 0);
-      controls.update();
-      alert("View reset to top-down for Z-aligned cuts.");
+    const angle = camDir.angleTo(zUp);
+    const aligned = Math.abs(angle - Math.PI / 2) < 0.3;
+
+    if (!aligned) {
+      centerCameraSideView();
+      alert("Camera aligned to side view for cut placement.");
       return;
     }
 
@@ -258,30 +269,10 @@ function createCutLine() {
 }
 
 function addBuildPlate() {
-  const plateGeo = new THREE.PlaneGeometry(220, 220);
-  const plateMat = new THREE.MeshBasicMaterial({
-    color: 0x222222,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.9
-  });
-
-  const plate = new THREE.Mesh(plateGeo, plateMat);
-  plate.rotation.x = -Math.PI / 2;
-  plate.position.y = 0;
-  plate.position.z = 0;
-  scene.add(plate);
-
-  const grid = new THREE.GridHelper(220, 20, 0xffffff, 0xaaaaaa);
+  const grid = new THREE.GridHelper(220, 20, 0xffffff, 0x888888);
   grid.rotation.x = Math.PI / 2;
   grid.position.z = 0.01;
   scene.add(grid);
-
-  const heightBox = new THREE.BoxHelper(
-    new THREE.Mesh(new THREE.BoxGeometry(220, 220, 250)),
-    0x444444
-  );
-  scene.add(heightBox);
 }
 
 window.addEventListener('resize', resizeViewer);
