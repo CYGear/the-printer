@@ -132,7 +132,7 @@ function centerCameraOnModel() {
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
 
-  // Set camera to side view
+  // Side view
   camera.position.copy(center.clone().add(new THREE.Vector3(size.length() * 1.5, 0, size.y)));
   camera.lookAt(center);
   controls.target.copy(center);
@@ -174,7 +174,8 @@ function autoOrientToFlattestFace(mesh) {
   mesh.applyQuaternion(quaternion);
 
   geometry.computeBoundingBox();
-  mesh.position.z = -geometry.boundingBox.min.z;
+  const minZ = geometry.boundingBox.min.z;
+  mesh.position.z = -minZ; // Sit flush on build plate
 }
 
 function addTransformControls() {
@@ -187,10 +188,11 @@ function addTransformControls() {
     controls.enabled = !event.value;
   });
 
-  // Prevent mesh from going below the plate
+  // Prevent mesh from going below build plate
   transformControls.addEventListener("objectChange", () => {
-    if (mesh.position.z < 0) {
-      mesh.position.z = 0;
+    const box = new THREE.Box3().setFromObject(mesh);
+    if (box.min.z < 0) {
+      mesh.position.z -= box.min.z;
     }
   });
 
@@ -261,18 +263,25 @@ function addBuildPlate() {
     color: 0x222222,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.8
+    opacity: 0.9
   });
 
   const plate = new THREE.Mesh(plateGeo, plateMat);
   plate.rotation.x = -Math.PI / 2;
   plate.position.y = 0;
+  plate.position.z = 0;
   scene.add(plate);
 
   const grid = new THREE.GridHelper(220, 20, 0xffffff, 0xaaaaaa);
   grid.rotation.x = Math.PI / 2;
-  grid.position.y = 0.01;
+  grid.position.z = 0.01;
   scene.add(grid);
+
+  const heightBox = new THREE.BoxHelper(
+    new THREE.Mesh(new THREE.BoxGeometry(220, 220, 250)),
+    0x444444
+  );
+  scene.add(heightBox);
 }
 
 window.addEventListener('resize', resizeViewer);
