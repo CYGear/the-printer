@@ -132,7 +132,8 @@ function centerCameraOnModel() {
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
 
-  camera.position.copy(center.clone().add(new THREE.Vector3(0, 0, size.length() * 1.5)));
+  // Set camera to side view
+  camera.position.copy(center.clone().add(new THREE.Vector3(size.length() * 1.5, 0, size.y)));
   camera.lookAt(center);
   controls.target.copy(center);
   controls.update();
@@ -186,6 +187,13 @@ function addTransformControls() {
     controls.enabled = !event.value;
   });
 
+  // Prevent mesh from going below the plate
+  transformControls.addEventListener("objectChange", () => {
+    if (mesh.position.z < 0) {
+      mesh.position.z = 0;
+    }
+  });
+
   scene.add(transformControls);
 }
 
@@ -229,8 +237,8 @@ function createCutLine() {
   const geometry = new THREE.PlaneGeometry(220, 0.2);
   const material = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
   const line = new THREE.Mesh(geometry, material);
-  line.position.set(0, 0, 10 + cutLines.length * 5); // spaced vertically
-  line.rotation.x = Math.PI / 2; // horizontal plane on Z axis
+  line.position.set(0, 0, 10 + cutLines.length * 5);
+  line.rotation.x = Math.PI / 2;
   scene.add(line);
   cutLines.push(line);
 
@@ -239,18 +247,32 @@ function createCutLine() {
   dragControl.setMode("translate");
   dragControl.showX = false;
   dragControl.showY = false;
+
   dragControl.addEventListener("dragging-changed", function (event) {
     controls.enabled = !event.value;
   });
+
   scene.add(dragControl);
 }
 
 function addBuildPlate() {
   const plateGeo = new THREE.PlaneGeometry(220, 220);
-  const plateMat = new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide });
+  const plateMat = new THREE.MeshBasicMaterial({
+    color: 0x222222,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.8
+  });
+
   const plate = new THREE.Mesh(plateGeo, plateMat);
   plate.rotation.x = -Math.PI / 2;
+  plate.position.y = 0;
   scene.add(plate);
+
+  const grid = new THREE.GridHelper(220, 20, 0xffffff, 0xaaaaaa);
+  grid.rotation.x = Math.PI / 2;
+  grid.position.y = 0.01;
+  scene.add(grid);
 }
 
 window.addEventListener('resize', resizeViewer);
