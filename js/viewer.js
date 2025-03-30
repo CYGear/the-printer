@@ -213,6 +213,7 @@ function createCutLine() {
   line.name = `cutLine_${cutLines.length}`;
   cutLines.push(line);
   scene.add(line);
+
   const dragControl = new THREE.TransformControls(camera, renderer.domElement);
   dragControl.attach(line);
   dragControl.setMode("translate");
