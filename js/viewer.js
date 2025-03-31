@@ -233,11 +233,11 @@ function addCutControls() {
     camera.getWorldDirection(camDir);
 
     const angle = camDir.angleTo(zUp);
-    const aligned = Math.abs(angle - Math.PI / 2) < 0.3;
+    const isTopDown = angle < 0.3;
 
-    if (!aligned) {
+    if (isTopDown) {
       centerCameraSideView();
-      alert("Camera aligned to side view for cut placement.");
+      alert("Camera reset to side view for cut placement.");
       return;
     }
 
