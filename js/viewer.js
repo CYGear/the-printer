@@ -1,6 +1,7 @@
 let scene, camera, renderer, controls, transformControls, mesh;
 let cutLines = [];
 let segmentColors = {};
+let rotationToggle = true;
 
 function loadSTL(event) {
   const file = event.target.files[0];
@@ -213,6 +214,8 @@ function addTransformControls() {
 
 function addCutControls() {
   const container = document.getElementById("viewer");
+
+  // Add Cut Button
   const cutBtn = document.createElement("button");
   cutBtn.innerText = "Add Cut";
   cutBtn.style = `
@@ -244,6 +247,27 @@ function addCutControls() {
     createCutLine();
   };
   container.appendChild(cutBtn);
+
+  // Rotation Toggle Button
+  const rotateBtn = document.createElement("button");
+  rotateBtn.innerText = "Rotation";
+  rotateBtn.style = `
+    position: absolute;
+    top: 160px;
+    right: 10px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid #555;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    z-index: 10;
+  `;
+  rotateBtn.onclick = () => {
+    rotationToggle = !rotationToggle;
+    transformControls.visible = rotationToggle;
+  };
+  container.appendChild(rotateBtn);
 }
 
 function createCutLine() {
